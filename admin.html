@@ -1,0 +1,343 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Goal Zone | Admin Dashboard</title>
+<style>
+:root{--bg:#07110d;--panel:#101d17;--green:#b8ff45;--muted:#9aaca0;--border:#25362c}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#f4f8f4;font:15px system-ui,Arial}
+main{max-width:1050px;margin:auto;padding:20px}
+h1,h2{margin-top:0}
+h1 span{color:var(--green)}
+.card{background:var(--panel);border:1px solid var(--border);padding:18px;border-radius:14px;margin:15px 0}
+input,textarea,select{width:100%;padding:12px;margin:6px 0 12px;background:#07110d;color:white;border:1px solid var(--border);border-radius:8px}
+textarea{min-height:85px}
+button{background:var(--green);color:#10180b;border:0;border-radius:8px;padding:11px 15px;font-weight:800;cursor:pointer;margin:4px}
+button.secondary{background:#25362c;color:white}
+button.danger{background:#8e3030;color:white}
+nav{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0}
+nav button{flex:1}
+.item{border:1px solid var(--border);padding:12px;border-radius:9px;margin:10px 0;overflow-wrap:anywhere}
+.item small{color:var(--muted)}
+.hidden{display:none}
+#msg{white-space:pre-wrap;color:var(--green);overflow-wrap:anywhere}
+label{display:block;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<main>
+<h1>GOAL ZONE <span>ADMIN</span></h1>
+<p style="color:#9aaca0">Owner Control Panel</p>
+<div id="msg">Please sign in.</div>
+
+<section id="login" class="card">
+<h2>Owner Login</h2>
+<label>Email</label>
+<input id="email" type="email" autocomplete="username" placeholder="Owner email">
+<label>Password</label>
+<input id="password" type="password" autocomplete="current-password" placeholder="Password">
+<button id="loginBtn">Sign In</button>
+</section>
+
+<section id="dashboard" class="hidden">
+<div class="card">
+<strong id="ownerInfo">Owner</strong>
+<button id="logoutBtn" class="secondary">Sign Out</button>
+</div>
+
+<nav>
+<button data-tab="posts">News & Highlights</button>
+<button data-tab="streams">Live TV</button>
+<button data-tab="ads">Advertisements</button>
+</nav>
+
+<section id="posts" class="tab card">
+<h2>News & Highlights</h2>
+<form id="postForm">
+<label>Content type</label>
+<select id="postKind">
+<option value="news">Football News</option>
+<option value="highlight">Match Highlights</option>
+</select>
+<label>Title</label><input id="postTitle" required maxlength="200">
+<label>Summary</label><textarea id="postSummary"></textarea>
+<label>Article / Description</label><textarea id="postBody"></textarea>
+<label>Image URL (optional)</label><input id="postImage" type="url">
+<label>Official video URL (optional)</label><input id="postVideo" type="url">
+<label>Status</label>
+<select id="postStatus">
+<option value="draft">Draft</option>
+<option value="published">Published</option>
+</select>
+<button type="submit">Save Content</button>
+</form>
+<button id="loadPosts" class="secondary">Refresh Content</button>
+<div id="postList"></div>
+</section>
+
+<section id="streams" class="tab card hidden">
+<h2>Live TV Channels</h2>
+<p style="color:#9aaca0">Add only streams you own or are authorised to distribute.</p>
+<form id="streamForm">
+<label>Channel Name</label><input id="streamName" required>
+<label>Authorised Stream URL</label><input id="streamUrl" type="url" required>
+<label>Stream type</label>
+<select id="streamType">
+<option value="iframe">iframe / embed</option>
+<option value="hls">HLS</option>
+<option value="youtube">YouTube</option>
+<option value="other">Other</option>
+</select>
+<label>Match ID (optional; must be an existing UUID if supplied)</label>
+<input id="matchId" placeholder="Existing matches.id">
+<label>Sort order</label><input id="sortOrder" type="number" value="0">
+<button type="submit">Add Channel</button>
+</form>
+<button id="loadStreams" class="secondary">Refresh Channels</button>
+<div id="streamList"></div>
+</section>
+
+<section id="ads" class="tab card hidden">
+<h2>Advertisements</h2>
+<form id="adForm">
+<label>Placement ID / Name</label><input id="adPlacement" required placeholder="home_top">
+<label>Label</label><input id="adLabel" required placeholder="Top banner">
+<label>Ad code / authorised ad snippet</label><textarea id="adCode"></textarea>
+<label><input id="adEnabled" type="checkbox" checked style="width:auto"> Enabled</label>
+<button type="submit">Save Advertisement</button>
+</form>
+<button id="loadAds" class="secondary">Refresh Ads</button>
+<div id="adList"></div>
+</section>
+</section>
+</main>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+/* Replace both values with your own Supabase project credentials. */
+const SUPABASE_URL = 'https://kdvlhfzbfbygnzelyglt.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_xjr2rWH1lRL3Iq-Akixsug_u5Dn7c5C';
+
+const $ = id => document.getElementById(id);
+const msg = text => $('msg').textContent = text;
+
+if (SUPABASE_URL.includes('PASTE_') ||
+    SUPABASE_PUBLISHABLE_KEY.includes('PASTE_')) {
+  msg('Please add your Supabase URL and Publishable Key in this file.');
+  $('login').classList.remove('hidden');
+  throw new Error('Supabase configuration missing');
+}
+
+const db = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+let currentUser = null;
+
+function safe(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;',
+    '"':'&quot;', "'":'&#39;'
+  })[c]);
+}
+
+function showList(id, rows, fields, table) {
+  const root = $(id);
+  root.replaceChildren();
+  if (!rows.length) {
+    root.textContent = 'No records found.';
+    return;
+  }
+  rows.forEach(row => {
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.innerHTML = fields.map(f =>
+      `<div><strong>${safe(f[1])}:</strong> ${safe(row[f[0]])}</div>`
+    ).join('') +
+      `<button class="danger" data-delete="${safe(table)}" data-id="${safe(row.id)}">Delete</button>`;
+    root.appendChild(div);
+  });
+}
+
+async function checkOwner() {
+  const { data: { user }, error } = await db.auth.getUser();
+  if (error || !user) {
+    currentUser = null;
+    $('dashboard').classList.add('hidden');
+    $('login').classList.remove('hidden');
+    msg('Sign in with your Supabase account.');
+    return false;
+  }
+
+  const { data: profile, error: profileError } = await db
+    .from('profiles')
+    .select('role,is_active,display_name')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (profileError || !profile ||
+      profile.role !== 'owner' || profile.is_active !== true) {
+    await db.auth.signOut();
+    $('dashboard').classList.add('hidden');
+    $('login').classList.remove('hidden');
+    msg('Owner access denied. Check profiles.role and profiles.is_active.');
+    return false;
+  }
+
+  currentUser = user;
+  $('ownerInfo').textContent = 'Owner: ' + (profile.display_name || user.email);
+  $('login').classList.add('hidden');
+  $('dashboard').classList.remove('hidden');
+  msg('Owner verified.');
+  await Promise.all([loadPosts(), loadStreams(), loadAds()]);
+  return true;
+}
+
+$('loginBtn').addEventListener('click', async () => {
+  msg('Signing in...');
+  const { error } = await db.auth.signInWithPassword({
+    email: $('email').value.trim(),
+    password: $('password').value
+  });
+  if (error) {
+    msg('Login failed: ' + error.message);
+    return;
+  }
+  await checkOwner();
+});
+
+$('logoutBtn').addEventListener('click', async () => {
+  await db.auth.signOut();
+  $('dashboard').classList.add('hidden');
+  $('login').classList.remove('hidden');
+  msg('Signed out.');
+});
+
+document.querySelectorAll('[data-tab]').forEach(button => {
+  button.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden'));
+    $(button.dataset.tab).classList.remove('hidden');
+  });
+});
+
+async function loadPosts() {
+  const { data, error } = await db.from('posts')
+    .select('id,kind,title,status,created_at')
+    .order('created_at', { ascending:false }).limit(100);
+  if (error) return msg('Posts load failed: ' + error.message);
+  showList('postList', data || [], [
+    ['title','Title'],['kind','Type'],['status','Status'],['id','ID']
+  ], 'posts');
+}
+
+$('postForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!currentUser) return;
+  const title = $('postTitle').value.trim();
+  const slug = title.toLowerCase()
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')
+    .slice(0,150) + '-' + Date.now();
+
+  const row = {
+    kind: $('postKind').value,
+    title,
+    slug,
+    summary: $('postSummary').value.trim(),
+    body: $('postBody').value.trim(),
+    image_url: $('postImage').value.trim() || null,
+    video_url: $('postVideo').value.trim() || null,
+    author_id: currentUser.id,
+    status: $('postStatus').value
+  };
+
+  const { error } = await db.from('posts').insert(row);
+  if (error) return msg('Save failed: ' + error.message);
+  e.target.reset();
+  msg('Content saved.');
+  await loadPosts();
+});
+
+async function loadStreams() {
+  const { data, error } = await db.from('stream_servers')
+    .select('id,name,stream_url,stream_type,is_active,sort_order,match_id')
+    .order('sort_order').limit(100);
+  if (error) return msg('Channels load failed: ' + error.message);
+  showList('streamList', data || [], [
+    ['name','Channel'],['stream_type','Type'],
+    ['is_active','Active'],['stream_url','URL'],['id','ID']
+  ], 'stream_servers');
+}
+
+$('streamForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const row = {
+    name: $('streamName').value.trim(),
+    stream_url: $('streamUrl').value.trim(),
+    stream_type: $('streamType').value,
+    is_active: true,
+    sort_order: Number($('sortOrder').value || 0),
+    match_id: $('matchId').value.trim() || null
+  };
+  const { error } = await db.from('stream_servers').insert(row);
+  if (error) return msg('Channel save failed: ' + error.message);
+  e.target.reset();
+  $('sortOrder').value = '0';
+  msg('Channel added.');
+  await loadStreams();
+});
+
+async function loadAds() {
+  const { data, error } = await db.from('ad_settings')
+    .select('id,placement,label,is_enabled,ad_code')
+    .order('placement').limit(100);
+  if (error) return msg('Ads load failed: ' + error.message);
+  showList('adList', data || [], [
+    ['placement','Placement'],['label','Label'],
+    ['is_enabled','Enabled'],['id','ID']
+  ], 'ad_settings');
+}
+
+$('adForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const row = {
+    placement: $('adPlacement').value.trim(),
+    label: $('adLabel').value.trim(),
+    ad_code: $('adCode').value.trim(),
+    is_enabled: $('adEnabled').checked,
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await db.from('ad_settings').insert(row);
+  if (error) return msg('Ad save failed: ' + error.message);
+  e.target.reset();
+  $('adEnabled').checked = true;
+  msg('Advertisement saved.');
+  await loadAds();
+});
+
+document.addEventListener('click', async e => {
+  const button = e.target.closest('[data-delete]');
+  if (!button || !currentUser) return;
+  if (!confirm('Delete this record? This cannot be undone.')) return;
+
+  const table = button.dataset.delete;
+  if (!['posts','stream_servers','ad_settings'].includes(table)) return;
+
+  const { error } = await db.from(table).delete().eq('id', button.dataset.id);
+  if (error) return msg('Delete failed: ' + error.message);
+
+  msg('Record deleted.');
+  if (table === 'posts') await loadPosts();
+  if (table === 'stream_servers') await loadStreams();
+  if (table === 'ad_settings') await loadAds();
+});
+
+$('loadPosts').addEventListener('click', loadPosts);
+$('loadStreams').addEventListener('click', loadStreams);
+$('loadAds').addEventListener('click', loadAds);
+
+await checkOwner();
+</script>
+</body>
+</html>
