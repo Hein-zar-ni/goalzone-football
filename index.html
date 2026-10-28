@@ -564,7 +564,7 @@ async function loadChannels() {
     message.textContent =
       'Channels load မရပါ။ Supabase RLS Policy နဲ့ Stream URL ကို စစ်ပါ။';
   }
-
+}
 
 async function refreshContent() {
   await Promise.all([loadPosts(), loadChannels()]);
