@@ -290,6 +290,24 @@
         "No authorised stream has been configured yet. Connect the stream service in the next setup step.";
     });
   </script>
+  
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+  const SUPABASE_URL = 'https://kdvlhfzbfbygnzelyglt.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_xjr2rWH1lRL3Iq-Akixsug_u5Dn7c5C';
+
+  const supabase = createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
+
+  window.supabaseClient = supabase;
+
+  console.log('Goal Zone Football: Supabase client initialized');
+</script>
+</body>
+  
 </body>
   </html>
   
