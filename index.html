@@ -291,23 +291,167 @@
     });
   </script>
   
+
 <script type="module">
-  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-  const SUPABASE_URL = 'https://kdvlhfzbfbygnzelyglt.supabase.co';
-  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_xjr2rWH1lRL3Iq-Akixsug_u5Dn7c5C';
+const SUPABASE_URL = 'https://kdvlhfzbfbygnzelyglt.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_xjr2rWH1lRL3Iq-Akixsug_u5Dn7c5C';
 
-  const supabase = createClient(
-    SUPABASE_URL,
-    SUPABASE_PUBLISHABLE_KEY
-  );
+const db = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-  window.supabaseClient = supabase;
+document.getElementById('year').textContent = new Date().getFullYear();
 
-  console.log('Goal Zone Football: Supabase client initialized');
+function makeCard(item, type) {
+  const article = document.createElement('article');
+  article.className = 'card';
+
+  const art = document.createElement('div');
+  art.className = 'art';
+
+  if (item.image_url) {
+    const img = document.createElement('img');
+    img.src = item.image_url;
+    img.alt = item.title || '';
+    img.loading = 'lazy';
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover';
+    art.appendChild(img);
+  } else {
+    art.textContent = type === 'news' ? '📰' : '⚽';
+  }
+
+  const body = document.createElement('div');
+  body.className = 'card-body';
+
+  const tag = document.createElement('span');
+  tag.className = 'tag';
+  tag.textContent = type === 'news' ? 'Football News' : 'Highlights';
+
+  const title = document.createElement('h3');
+  title.textContent = item.title || 'Untitled';
+
+  const summary = document.createElement('p');
+  summary.textContent = item.summary || '';
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  meta.textContent = item.created_at
+    ? new Date(item.created_at).toLocaleDateString()
+    : '';
+
+  body.append(tag, title, summary, meta);
+
+  if (item.video_url) {
+    try {
+      const url = new URL(item.video_url);
+      if (url.protocol === 'https:' || url.protocol === 'http:') {
+        const link = document.createElement('a');
+        link.href = url.href;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'btn primary';
+        link.style.marginTop = '12px';
+        link.textContent = 'Watch Video ↗';
+        body.appendChild(link);
+      }
+    } catch {}
+  }
+
+  article.append(art, body);
+  return article;
+}
+
+async function loadPosts() {
+  const newsGrid = document.getElementById('news-grid');
+  const highlightsGrid = document.getElementById('highlight-grid');
+
+  try {
+    const { data, error } = await db
+      .from('posts')
+      .select('id,kind,title,summary,image_url,video_url,created_at')
+      .eq('status', 'published')
+      .order('created_at', { ascending: false })
+      .limit(60);
+
+    if (error) throw error;
+
+    newsGrid.replaceChildren();
+    highlightsGrid.replaceChildren();
+
+    const news = (data || []).filter(p => p.kind === 'news');
+    const highlights = (data || []).filter(p => p.kind === 'highlight');
+
+    news.forEach(p => newsGrid.appendChild(makeCard(p, 'news')));
+    highlights.forEach(p => highlightsGrid.appendChild(makeCard(p, 'highlight')));
+
+    if (!news.length) {
+      newsGrid.textContent = 'No published football news yet.';
+    }
+    if (!highlights.length) {
+      highlightsGrid.textContent = 'No published highlights yet.';
+    }
+  } catch (error) {
+    console.error('Posts loading failed:', error);
+  }
+}
+
+async function loadChannels() {
+  const player = document.querySelector('.player');
+  const message = document.getElementById('player-message');
+
+  try {
+    const { data, error } = await db
+      .from('stream_servers')
+      .select('id,name,stream_url,stream_type,is_active,sort_order')
+      .eq('is_active', true)
+      .order('sort_order');
+
+    if (error) throw error;
+
+    player.querySelectorAll('.channel-list').forEach(el => el.remove());
+
+    if (!data || !data.length) {
+      message.textContent = 'No authorised live channels available yet.';
+      return;
+    }
+
+    message.textContent = 'Choose an authorised channel below.';
+
+    const list = document.createElement('div');
+    list.className = 'channel-list';
+    list.style.cssText = 'display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:15px';
+
+    data.forEach(channel => {
+      const link = document.createElement('a');
+      link.className = 'btn primary';
+      link.textContent = channel.name || 'Watch Channel';
+      try {
+        const url = new URL(channel.stream_url);
+        if (!['https:', 'http:'].includes(url.protocol)) return;
+        link.href = url.href;
+      } catch {
+        return;
+      }
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      list.appendChild(link);
+    });
+
+    player.appendChild(list);
+  } catch (error) {
+    console.error('Channel loading failed:', error);
+    message.textContent = 'Unable to load channels. Please try again later.';
+  }
+}
+
+async function refreshContent() {
+  await Promise.all([loadPosts(), loadChannels()]);
+}
+
+document.getElementById('reload-btn').addEventListener('click', refreshContent);
+
+await refreshContent();
 </script>
 </body>
-  
-</body>
-  </html>
+</html>
   
