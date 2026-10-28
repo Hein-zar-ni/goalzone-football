@@ -395,6 +395,7 @@ async function loadPosts() {
   }
 }
 
+
 async function loadChannels() {
   const player = document.querySelector('.player');
   const message = document.getElementById('player-message');
@@ -408,41 +409,162 @@ async function loadChannels() {
 
     if (error) throw error;
 
-    player.querySelectorAll('.channel-list').forEach(el => el.remove());
+    player.querySelectorAll('.channel-list, .video-screen')
+      .forEach(el => el.remove());
+
+    const oldPlayer = player.querySelector('.player-icon');
+    if (oldPlayer) oldPlayer.style.display = '';
 
     if (!data || !data.length) {
-      message.textContent = 'No authorised live channels available yet.';
+      message.textContent = 'No authorised channels available.';
       return;
     }
 
-    message.textContent = 'Choose an authorised channel below.';
+    message.textContent = 'Choose a channel to watch below.';
+
+    const screen = document.createElement('div');
+    screen.className = 'video-screen';
+    screen.style.cssText =
+      'width:100%;aspect-ratio:16/9;background:#000;margin:16px 0;border-radius:12px;overflow:hidden';
 
     const list = document.createElement('div');
     list.className = 'channel-list';
-    list.style.cssText = 'display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:15px';
+    list.style.cssText =
+      'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:15px';
 
-    data.forEach(channel => {
-      const link = document.createElement('a');
-      link.className = 'btn primary';
-      link.textContent = channel.name || 'Watch Channel';
+    function playChannel(channel) {
+      screen.replaceChildren();
+
+      const raw = (channel.stream_url || '').trim();
+      let url;
+
       try {
-        const url = new URL(channel.stream_url);
-        if (!['https:', 'http:'].includes(url.protocol)) return;
-        link.href = url.href;
+        url = new URL(raw);
+        if (!['https:', 'http:'].includes(url.protocol)) {
+          throw new Error('Invalid URL');
+        }
       } catch {
+        message.textContent = 'Invalid channel URL.';
         return;
       }
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      list.appendChild(link);
+
+      const type = (channel.stream_type || '').toLowerCase();
+
+      // YouTube video or authorised YouTube live stream
+      if (type === 'youtube') {
+        let videoId = '';
+
+        if (url.hostname === 'youtu.be') {
+          videoId = url.pathname.slice(1);
+        } else if (
+          url.hostname.endsWith('youtube.com') ||
+          url.hostname.endsWith('youtube-nocookie.com')
+        ) {
+          if (url.pathname === '/watch') {
+            videoId = url.searchParams.get('v') || '';
+          } else {
+            videoId = url.pathname.split('/').filter(Boolean).pop() || '';
+          }
+        }
+
+        if (!/^[\w-]{11}$/.test(videoId)) {
+          message.textContent =
+            'YouTube URL မမှန်ပါ။ Video URL သို့မဟုတ် Live URL ကို စစ်ပါ။';
+          return;
+        }
+
+        const frame = document.createElement('iframe');
+        frame.src = 'https://www.youtube-nocookie.com/embed/' +
+          encodeURIComponent(videoId);
+        frame.allow =
+          'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+        frame.allowFullscreen = true;
+        frame.referrerPolicy = 'strict-origin-when-cross-origin';
+        frame.style.cssText = 'width:100%;height:100%;border:0';
+        screen.appendChild(frame);
+      }
+
+      // HLS stream (.m3u8)
+      else if (type === 'hls' || /\.m3u8($|\?)/i.test(url.href)) {
+        const video = document.createElement('video');
+        video.controls = true;
+        video.playsInline = true;
+        video.autoplay = true;
+        video.style.cssText = 'width:100%;height:100%;background:#000';
+        screen.appendChild(video);
+
+        if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = url.href;
+        } else {
+          import('https://esm.sh/hls.js@1').then(({ default: Hls }) => {
+            if (Hls.isSupported()) {
+              const hls = new Hls();
+              hls.loadSource(url.href);
+              hls.attachMedia(video);
+            } else {
+              message.textContent =
+                'ဒီ Browser မှာ HLS Stream ကို ဖွင့်မရပါ။';
+            }
+          }).catch(() => {
+            message.textContent = 'HLS Player ကို ဖွင့်မရပါ။';
+          });
+        }
+      }
+
+      // Direct MP4 / WebM video
+      else if (/\.(mp4|webm|ogv)($|\?)/i.test(url.href)) {
+        const video = document.createElement('video');
+        video.src = url.href;
+        video.controls = true;
+        video.playsInline = true;
+        video.autoplay = true;
+        video.style.cssText = 'width:100%;height:100%;background:#000';
+        screen.appendChild(video);
+      }
+
+      // Other authorised embeddable stream URLs
+      else if (type === 'iframe') {
+        const frame = document.createElement('iframe');
+        frame.src = url.href;
+        frame.allow = 'autoplay; encrypted-media; picture-in-picture';
+        frame.allowFullscreen = true;
+        frame.referrerPolicy = 'strict-origin-when-cross-origin';
+        frame.style.cssText = 'width:100%;height:100%;border:0';
+        screen.appendChild(frame);
+      }
+
+      else {
+        message.textContent =
+          'ဒီ Stream Type ကို မထောက်ပံ့သေးပါ။ YouTube, HLS, MP4 သို့မဟုတ် iframe ကိုရွေးပါ။';
+        return;
+      }
+
+      message.textContent = 'Now playing: ' + (channel.name || 'Live Channel');
+      if (oldPlayer) oldPlayer.style.display = 'none';
+      screen.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    data.forEach(channel => {
+      const button = document.createElement('button');
+      button.className = 'btn primary';
+      button.textContent = channel.name || 'Watch Channel';
+      button.type = 'button';
+      button.addEventListener('click', () => playChannel(channel));
+      list.appendChild(button);
     });
 
+    player.insertBefore(screen, message);
     player.appendChild(list);
+
+    // Select the first available channel automatically
+    playChannel(data[0]);
+
   } catch (error) {
     console.error('Channel loading failed:', error);
-    message.textContent = 'Unable to load channels. Please try again later.';
+    message.textContent =
+      'Channels load မရပါ။ Supabase RLS Policy နဲ့ Stream URL ကို စစ်ပါ။';
   }
-}
+
 
 async function refreshContent() {
   await Promise.all([loadPosts(), loadChannels()]);
