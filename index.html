@@ -1,0 +1,295 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#07110d" />
+  <meta name="description" content="Goal Zone Football — Live TV, match highlights and daily football news." />
+  <title>Goal Zone Football | The Home of Football</title>
+  <style>
+    :root {
+      --bg: #07110d;
+      --panel: #101d17;
+      --panel2: #17261e;
+      --green: #b8ff45;
+      --muted: #9aaca0;
+      --white: #f4f8f4;
+      --border: #25362c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--white);
+      font-family: system-ui, Arial, sans-serif;
+    }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; cursor: pointer; }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 17px 5%; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 10;
+      background: rgba(7,17,13,.96); backdrop-filter: blur(12px);
+    }
+    .brand { font-size: 21px; font-weight: 900; letter-spacing: -.7px; }
+    .brand span { color: var(--green); }
+    .live-label { color: var(--green); font-size: 12px; font-weight: 800; }
+    .nav {
+      display: flex; gap: 23px; align-items: center;
+      color: var(--muted); font-size: 14px;
+    }
+    .nav a:hover, .nav a.active { color: var(--green); }
+    .hero {
+      padding: 54px 5% 36px;
+      background: radial-gradient(ellipse at 80% 15%, #244526 0, transparent 45%);
+    }
+    .eyebrow {
+      color: var(--green); text-transform: uppercase;
+      font-size: 12px; font-weight: 800; letter-spacing: 2px;
+    }
+    h1 { font-size: clamp(35px, 7vw, 68px); line-height: 1.02; margin: 15px 0; }
+    h1 span { color: var(--green); }
+    .hero p { color: var(--muted); line-height: 1.7; max-width: 530px; }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 12px 18px; border-radius: 9px; font-weight: 800;
+      border: 1px solid var(--border); background: var(--panel2); color: white;
+    }
+    .btn.primary { background: var(--green); color: #10180b; border-color: var(--green); }
+    main { padding: 10px 5% 55px; }
+    .section { margin-top: 38px; scroll-margin-top: 85px; }
+    .section-head {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 12px; margin-bottom: 17px;
+    }
+    h2 { font-size: 23px; margin: 0; }
+    .sub { color: var(--muted); font-size: 12px; margin-top: 5px; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .card {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden; min-width: 0;
+    }
+    .art {
+      height: 145px; display: flex; align-items: center; justify-content: center;
+      font-size: 48px;
+      background: radial-gradient(circle at 50% 100%, #285b30, #142b1c 65%, #101d17);
+    }
+    .card-body { padding: 15px; }
+    .tag {
+      display: inline-block; font-size: 10px; font-weight: 900;
+      letter-spacing: 1px; color: var(--green); text-transform: uppercase;
+      margin-bottom: 9px;
+    }
+    .card h3 { font-size: 16px; line-height: 1.45; margin: 0 0 9px; }
+    .card p { font-size: 12px; line-height: 1.65; color: var(--muted); margin: 0; }
+    .meta { color: var(--muted); font-size: 11px; margin-top: 13px; }
+    .player {
+      background: #030604; border: 1px solid var(--border);
+      border-radius: 14px; padding: 22px; text-align: center;
+    }
+    .player-icon { font-size: 43px; }
+    .player h3 { margin: 10px 0; }
+    .player p { color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .notice {
+      color: var(--muted); background: var(--panel);
+      border: 1px dashed var(--border); border-radius: 10px;
+      padding: 13px; font-size: 12px; line-height: 1.7; margin-top: 14px;
+    }
+    .ad-slot {
+      border: 1px dashed #34483a; border-radius: 10px;
+      min-height: 85px; display: flex; align-items: center;
+      justify-content: center; text-align: center; color: #718477;
+      font-size: 11px; margin-top: 25px; padding: 12px;
+    }
+    footer {
+      padding: 27px 5%; border-top: 1px solid var(--border);
+      color: var(--muted); font-size: 12px; line-height: 1.8;
+    }
+    .footer-brand { color: white; font-weight: 900; font-size: 17px; }
+    .footer-brand span { color: var(--green); }
+    @media(max-width: 700px) {
+      .topbar { padding: 14px 4%; }
+      .brand { font-size: 18px; }
+      .nav { gap: 12px; font-size: 12px; }
+      .nav a:nth-child(4) { display: none; }
+      .hero { padding: 43px 5% 25px; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .art { height: 110px; font-size: 38px; }
+      .card-body { padding: 12px; }
+      .card h3 { font-size: 14px; }
+      h2 { font-size: 20px; }
+    }
+    @media(max-width: 390px) {
+      .nav { gap: 8px; font-size: 11px; }
+      .grid { grid-template-columns: 1fr; }
+      .art { height: 150px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a href="#home" class="brand">GOAL ZONE <span>⚽</span></a>
+    <nav class="nav" aria-label="Main navigation">
+      <a href="#live">Live TV</a>
+      <a href="#highlights">Highlights</a>
+      <a href="#news">Daily News</a>
+      <a href="#about">About</a>
+    </nav>
+  </header>
+
+  <section class="hero" id="home">
+    <div class="eyebrow">Your Football Universe</div>
+    <h1>FEEL THE GAME.<br><span>LIVE THE MOMENT.</span></h1>
+    <p>
+      Your destination for authorised football live streams,
+      match highlights and the latest football stories.
+    </p>
+    <div class="actions">
+      <a class="btn primary" href="#live">▶ Explore Live TV</a>
+      <a class="btn" href="#highlights">Watch Highlights ↗</a>
+    </div>
+  </section>
+
+  <main>
+    <section class="section" id="live">
+      <div class="section-head">
+        <div>
+          <h2><span style="color:var(--green)">●</span> Football Live TV</h2>
+          <div class="sub">Official and authorised streams only</div>
+        </div>
+        <span class="live-label">LIVE CHANNELS</span>
+      </div>
+      <div class="player">
+        <div class="player-icon">📺</div>
+        <h3>Welcome to Goal Zone TV</h3>
+        <p id="player-message">
+          Official live broadcasts will appear here when an authorised
+          streaming source has been configured.
+        </p>
+        <div class="actions" style="justify-content:center">
+          <button class="btn primary" id="reload-btn" type="button">Refresh Channels</button>
+        </div>
+      </div>
+      <div class="notice">
+        No live broadcast is connected yet. Only add streams that you own
+        or are licensed to distribute. This page does not invent or scrape
+        unauthorised broadcast links.
+      </div>
+    </section>
+
+    <div class="ad-slot" id="ad-top">
+      ADVERTISEMENT · Adsterra placement will be configured here
+    </div>
+
+    <section class="section" id="highlights">
+      <div class="section-head">
+        <div>
+          <h2>Match Highlights</h2>
+          <div class="sub">Goals, key moments and match recaps</div>
+        </div>
+        <span class="live-label">HIGHLIGHTS</span>
+      </div>
+      <div class="grid" id="highlight-grid">
+        <article class="card">
+          <div class="art">⚽</div>
+          <div class="card-body">
+            <span class="tag">Highlights</span>
+            <h3>Featured Match Highlights</h3>
+            <p>Official highlight videos will be added by the administrator.</p>
+            <div class="meta">Awaiting video source</div>
+          </div>
+        </article>
+        <article class="card">
+          <div class="art">🏆</div>
+          <div class="card-body">
+            <span class="tag">Competition</span>
+            <h3>Top Football Moments</h3>
+            <p>Discover memorable moments from authorised video sources.</p>
+            <div class="meta">Video not connected</div>
+          </div>
+        </article>
+        <article class="card">
+          <div class="art">🎬</div>
+          <div class="card-body">
+            <span class="tag">Match Recap</span>
+            <h3>Match Recap & Analysis</h3>
+            <p>Recaps and analysis will appear here when published.</p>
+            <div class="meta">Coming soon</div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="news">
+      <div class="section-head">
+        <div>
+          <h2>Daily Football News</h2>
+          <div class="sub">The latest stories from the football world</div>
+        </div>
+        <span class="live-label">DAILY NEWS</span>
+      </div>
+      <div class="grid" id="news-grid">
+        <article class="card">
+          <div class="art">📰</div>
+          <div class="card-body">
+            <span class="tag">Football News</span>
+            <h3>Latest Football Headlines</h3>
+            <p>Verified news will be published here by the administrator.</p>
+            <div class="meta">No articles published yet</div>
+          </div>
+        </article>
+        <article class="card">
+          <div class="art">🌍</div>
+          <div class="card-body">
+            <span class="tag">World Football</span>
+            <h3>Football Around the World</h3>
+            <p>Club, league and international football updates.</p>
+            <div class="meta">Awaiting articles</div>
+          </div>
+        </article>
+        <article class="card">
+          <div class="art">🔎</div>
+          <div class="card-body">
+            <span class="tag">Analysis</span>
+            <h3>Transfers & Team Updates</h3>
+            <p>News and analysis with source links and publication dates.</p>
+            <div class="meta">Awaiting articles</div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <div class="ad-slot" id="ad-bottom">
+      ADVERTISEMENT · Adsterra placement will be configured here
+    </div>
+
+    <section class="section" id="about">
+      <h2>About Goal Zone Football</h2>
+      <p style="color:var(--muted);line-height:1.8;font-size:14px">
+        Goal Zone Football brings authorised live football broadcasts,
+        official match highlights and daily football news together in one
+        mobile-friendly destination.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-brand">GOAL ZONE <span>⚽</span></div>
+    Football, highlights and news in one place.
+    <br />Broadcast availability depends on authorised rights holders.
+    <br />© <span id="year"></span> Goal Zone Football.
+  </footer>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    document.getElementById("reload-btn").addEventListener("click", () => {
+      document.getElementById("player-message").textContent =
+        "No authorised stream has been configured yet. Connect the stream service in the next setup step.";
+    });
+  </script>
+</body>
+  </html>
+  
