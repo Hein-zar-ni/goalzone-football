@@ -65,8 +65,19 @@ label{display:block;color:var(--muted);font-size:13px}
 <label>Title</label><input id="postTitle" required maxlength="200">
 <label>Summary</label><textarea id="postSummary"></textarea>
 <label>Article / Description</label><textarea id="postBody"></textarea>
-<label>Image URL (optional)</label><input id="postImage" type="url">
-<label>Official video URL (optional)</label><input id="postVideo" type="url">
+
+<label>Upload image (optional)</label>
+<input id="postImageFile" type="file" accept="image/*">
+
+<label>Or image URL (optional)</label>
+<input id="postImage" type="url" placeholder="https://...">
+
+<label>Upload video file (optional)</label>
+<input id="postVideoFile" type="file" accept="video/mp4,video/webm,video/quicktime">
+
+<label>Or official video / embed URL (optional)</label>
+<input id="postVideo" type="url" placeholder="YouTube, MP4, or authorised embed URL">
+
 <label>Status</label>
 <select id="postStatus">
 <option value="draft">Draft</option>
@@ -231,44 +242,68 @@ async function loadPosts() {
   ], 'posts');
 }
 
+
+async function uploadMedia(file, folder) {
+  if (!file) return null;
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = `${folder}/${currentUser.id}/${Date.now()}-${safeName}`;
+
+  msg('Uploading ' + file.name + '...');
+
+  const { error } = await db.storage
+    .from('goalzone-media')
+    .upload(path, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type || undefined
+    });
+
+  if (error) throw error;
+
+  return db.storage
+    .from('goalzone-media')
+    .getPublicUrl(path).data.publicUrl;
+}
+
 $('postForm').addEventListener('submit', async e => {
   e.preventDefault();
   if (!currentUser) return;
-  const title = $('postTitle').value.trim();
-  const slug = title.toLowerCase()
-    .normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')
-    .slice(0,150) + '-' + Date.now();
 
-  const row = {
-    kind: $('postKind').value,
-    title,
-    slug,
-    summary: $('postSummary').value.trim(),
-    body: $('postBody').value.trim(),
-    image_url: $('postImage').value.trim() || null,
-    video_url: $('postVideo').value.trim() || null,
-    author_id: currentUser.id,
-    status: $('postStatus').value
-  };
+  try {
+    const imageFile = $('postImageFile').files[0];
+    const videoFile = $('postVideoFile').files[0];
 
-  const { error } = await db.from('posts').insert(row);
-  if (error) return msg('Save failed: ' + error.message);
-  e.target.reset();
-  msg('Content saved.');
-  await loadPosts();
+    const uploadedImage = await uploadMedia(imageFile, 'images');
+    const uploadedVideo = await uploadMedia(videoFile, 'videos');
+
+    const title = $('postTitle').value.trim();
+    const slug = title.toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') + '-' + Date.now();
+
+    const row = {
+      kind: $('postKind').value,
+      title,
+      slug,
+      summary: $('postSummary').value.trim(),
+      body: $('postBody').value.trim(),
+      image_url: uploadedImage || $('postImage').value.trim() || null,
+      video_url: uploadedVideo || $('postVideo').value.trim() || null,
+      author_id: currentUser.id,
+      status: $('postStatus').value
+    };
+
+    const { error } = await db.from('posts').insert(row);
+    if (error) throw error;
+
+    e.target.reset();
+    msg('Upload and save successful!');
+    await loadPosts();
+  } catch (error) {
+    msg('Upload/save failed: ' + error.message);
+  }
 });
-
-async function loadStreams() {
-  const { data, error } = await db.from('stream_servers')
-    .select('id,name,stream_url,stream_type,is_active,sort_order,match_id')
-    .order('sort_order').limit(100);
-  if (error) return msg('Channels load failed: ' + error.message);
-  showList('streamList', data || [], [
-    ['name','Channel'],['stream_type','Type'],
-    ['is_active','Active'],['stream_url','URL'],['id','ID']
-  ], 'stream_servers');
-}
 
 $('streamForm').addEventListener('submit', async e => {
   e.preventDefault();
